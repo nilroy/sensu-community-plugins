@@ -116,7 +116,7 @@ class Ec2Node < Sensu::Handler
     states = acquire_valid_states
     instances = ec2.servers.all('tag:Role' => @event['client']['role'], \
                                 'tag:Environment' => @event['client']['environment'], \
-                                'tag:Name' => @event['client']['name']))
+                                'tag:Name' => @event['client']['name'])
     filtered_instances = instances.select { |s| states.include?(s.state) }
     filtered_instances.empty? ? false : true
   end
