@@ -88,6 +88,7 @@ class Mailer < Sensu::Handler
     smtp_password = settings[json_config]['smtp_password'] || nil
     smtp_authentication = settings[json_config]['smtp_authentication'] || :plain
     smtp_enable_starttls_auto = settings[json_config]['smtp_enable_starttls_auto'] == 'false' ? false : true
+    smtp_use_tls = settings[json_config]['smtp_use_tls'] ? true : false
     # try to redact passwords from output and command
     output = "#{@event['check']['output']}".gsub(/(-p|-P|--password)\s*\S+/, '\1 <password redacted>')
     command = "#{@event['check']['command']}".gsub(/(-p|-P|--password)\s*\S+/, '\1 <password redacted>')
@@ -117,7 +118,8 @@ class Mailer < Sensu::Handler
         port: smtp_port,
         domain: smtp_domain,
         openssl_verify_mode: 'none',
-        enable_starttls_auto: smtp_enable_starttls_auto
+        enable_starttls_auto: smtp_enable_starttls_auto,
+        tls: smtp_use_tls
       }
 
       unless smtp_username.nil?
