@@ -114,12 +114,11 @@ class Ec2Node < Sensu::Handler
 
   def ec2_node_exists?
     states = acquire_valid_states
-    filtered_instances = ec2.servers.select { |s| states.include?(s.state) }
-    instance_ids = filtered_instances.map(&:id)
-    instance_ids.each do |id|
-      return true if id == @event['client']['name']
-    end
-    false # no match found, node doesn't exist
+    instances = ec2.servers.all('tag:Role' => @event['client']['role'], \
+                                'tag:Environment' => @event['client']['environment'], \
+                                'tag:Name' => @event['client']['name']))
+    filtered_instances = instances.select { |s| states.include?(s.state) }
+    filtered_instances.empty? ? false : true
   end
 
   def ec2
