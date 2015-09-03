@@ -133,11 +133,11 @@ class Ec2Node < Sensu::Handler
   def deletion_status(code)
     case code
     when '202'
-      puts "[EC2 Node] 202: Successfully deleted Sensu client: #{node}"
+      puts "[EC2 Node] 202: Successfully deleted Sensu client: #{@event['client']['name']}"
     when '404'
-      puts "[EC2 Node] 404: Unable to delete #{node}, doesn't exist!"
+      puts "[EC2 Node] 404: Unable to delete #{@event['client']['name']}, doesn't exist!"
     when '500'
-      puts "[EC2 Node] 500: Miscellaneous error when deleting #{node}"
+      puts "[EC2 Node] 500: Miscellaneous error when deleting #{@event['client']['name']}"
     else
       puts "[EC2 Node] #{res}: Completely unsure of what happened!"
     end
