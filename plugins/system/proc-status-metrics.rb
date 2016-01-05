@@ -79,7 +79,7 @@ class ProcStatus < Sensu::Plugin::Metric::CLI::Graphite
   end
 
   def get_valid_pids(pgrep_output)
-    res = pgrep_output.split("\n").map(&:strip)
+    res = pgrep_output.split("\n").map(&:strip).collect {|p| p.to_i}
     pids = res.reject { |x| !x.integer? }
     pids
   end
