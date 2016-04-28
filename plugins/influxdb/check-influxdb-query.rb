@@ -131,6 +131,7 @@ class CheckInfluxdbQuery < Sensu::Plugin::Check::CLI
                                     password: config[:password]
 
     value = influxdb.query config[:query]
+    values = value.each_slice(1).to_a
 
     if config[:alias]
       query_name = config[:alias]
@@ -144,19 +145,42 @@ class CheckInfluxdbQuery < Sensu::Plugin::Check::CLI
 
     if config[:jsonpath]
       json_path = JsonPath.new(config[:jsonpath])
-      value = json_path.on(value).first || 0
-
       calc = Dentaku::Calculator.new
-      if config[:critical] && calc.evaluate(config[:critical], value: value)
-        critical "Value '#{value}' matched '#{config[:critical]}' for query '#{query_name}'"
-      elsif config[:warning] && calc.evaluate(config[:warning], value: value)
-        warning "Value '#{value}' matched '#{config[:warning]}' for query '#{query_name}'"
+      _critical_ = []
+      _warning_ = []
+      _ok_ = []
+      values.each do |_value_|
+        value = json_path.on(_value_).first || 0
+        if config[:critical] && calc.evaluate(config[:critical], value: value)
+          _critical_ << {"value" => value, "tags" => _value_[0]['tags']}
+        elsif config[:warning] && calc.evaluate(config[:warning], value: value)
+          _warning_ << {"value" => value, "tags" => _value_[0]['tags']}
+        else
+          _ok_ << {"value" => value, "tags" => _value_[0]['tags'] }
+        end
+      end
+      if ! _critical_.empty?
+        if _critical_.count > 1
+          critical "Multiple values '#{_warning_}' matched '#{config[:critical]}' for query '#{query_name}'"
+        else
+          critical "Value '#{_critical_[0]["value"]}' ('tags'=>#{_critical_[0]['tags']}) matched '#{config[:critical]}' for query '#{query_name}'"
+        end
+      elsif ! _warning_.empty?
+        if _warning_.count > 1
+          warning "Multiple values '#{_warning_}' matched '#{config[:warning]}' for query '#{query_name}'"
+        else
+          warning "Value '#{_warning_[0]["value"]}' ('tags'=>#{_warning_[0]['tags']}) matched '#{config[:warning]}' for query '#{query_name}'"
+        end
       else
-        ok "Value '#{value}' ok for query '#{query_name}'"
+        if _ok_.count > 1
+          ok "Multiple values '#{_ok_}' ok for query '#{query_name}'"
+        else
+          ok "Value '#{_ok_[0]["value"]}' ('tags'=>#{_ok_[0]['tags']}) ok for query '#{query_name}'"
+        end
       end
     else
       puts 'Debug output. Use -j to check value...'
-      puts JSON.pretty_generate(value)
+      puts JSON.pretty_generate(values)
     end
   end
 end
