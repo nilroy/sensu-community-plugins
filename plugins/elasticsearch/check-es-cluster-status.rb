@@ -78,16 +78,16 @@ class ESClusterStatus < Sensu::Plugin::Check::CLI
   def master?
     if Gem::Version.new(acquire_es_version) >= Gem::Version.new('1.0.0')
       master = get_es_resource('_cluster/state/master_node')['master_node']
-      local = get_es_resource('_nodes/_local')
+      local = get_es_resource('/_nodes/_local')
     else
-      master = get_es_resource('_cluster/state?filter_routing_table=true&filter_metadata=true&filter_indices=true')['master_node']
-      local = get_es_resource('_cluster/nodes/_local')
+      master = get_es_resource('/_cluster/state?filter_routing_table=true&filter_metadata=true&filter_indices=true')['master_node']
+      local = get_es_resource('/_cluster/nodes/_local')
     end
     local['nodes'].keys.first == master
   end
 
   def acquire_status
-    health = get_es_resource('_cluster/health')
+    health = get_es_resource('/_cluster/health')
     health['status'].downcase
   end
 
