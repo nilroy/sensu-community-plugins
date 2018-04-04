@@ -31,7 +31,7 @@
 #
 # Requires the following Rubygems (`gem install $GEM`):
 #   - sensu-plugin
-#   - fog
+#   - aws-sdk
 #
 # Requires a Sensu configuration snippet:
 #   {
@@ -93,7 +93,7 @@
 require 'timeout'
 require 'rubygems' if RUBY_VERSION < '1.9.0'
 require 'sensu-handler'
-require 'fog'
+require 'aws-sdk'
 
 class Ec2Node < Sensu::Handler
   def filter; end
@@ -114,19 +114,31 @@ class Ec2Node < Sensu::Handler
 
   def ec2_node_exists?
     states = acquire_valid_states
-    instances = ec2.servers.all('tag:Role' => @event['client']['role'], \
-                                'tag:Environment' => @event['client']['environment'], \
-                                'tag:Name' => @event['client']['name'])
-    filtered_instances = instances.select { |s| states.include?(s.state) }
+    filters = []
+    filters << { name: 'tag:Role', values: [@event['client']['role']] }
+    filters << { name: 'tag:Environment', values: [@event['client']['environment']] }
+    filters << { name: 'tag:Name', values: [@event['client']['name']] }
+    instances = ec2.describe_instances(filters: filters)
+    filtered_instances = []
+
+    loop do
+      instances.reservations.each do |r|
+        r.instances.each do |i|
+          filtered_instances << i if states.include?(i.state.name)
+        end
+      end
+
+      # If next_token is set, fetch a new set of servers
+      break unless instances.next_token
+      instances = ec2.describe_instances(next_token: instances.next_token)
+    end
     filtered_instances.empty? ? false : true
   end
 
   def ec2
     @ec2 ||= begin
       region = settings['aws']['region'] || ENV['EC2_REGION']
-      Fog::Compute.new(use_iam_profile: true,
-                       provider: 'AWS',
-                       region: region)
+      Aws::EC2::Client.new(region: region)
     end
   end
 
@@ -145,9 +157,9 @@ class Ec2Node < Sensu::Handler
 
   def acquire_valid_states
     if @event['client'].key?('ec2_states')
-      return @event['client']['ec2_states']
+      @event['client']['ec2_states']
     else
-      return ['running']
+      ['running']
     end
   end
 end
